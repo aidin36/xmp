@@ -1,0 +1,3 @@
+# IPTC Javascript package
+
+Under developement...

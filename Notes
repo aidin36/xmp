@@ -1,0 +1,44 @@
+What Javascript output should I target? How old? How much browser support?
+Maybe I can produce two or more .js files: One that supports very old browsers too (but probably less performant) and one that only supports newer browsers and environments. So users can choose between them. (I can do this using two tsconfig or babel config, and compile the code two times before publishing.)
+-> Or maybe not. Because users can use Babel to transpile the code into anything they want!
+
+---
+
+یه فایل json دارن. می‌تونم از روش code generate کنم که همه فیلدهای استاندارد رو اتوماتیک داشته باشم به جای دستی نوشتن‌اش.
+
+یه عکس نمونه دارن که همه فیلدهای iotc رو توش داره.
+
+جفتشون رو اینجا لینک داده:
+https://iptc.org/standards/photo-metadata/iptc-standard/
+
+---
+How to find the IPTC data in a JPEG file?
+There are some info here:
+https://exiftool.org/forum/index.php?topic=4493.0
+
+---
+A good source that explains how XMP is stored in APP1:
+
+https://metacpan.org/dist/Image-MetaData-JPEG/view/lib/Image/MetaData/JPEG/Structures.pod#Structure-of-an-XMP-APP1-segment
+
+
+---
+React Native
+
+ArrayBuffer is not supported in React Native. Not sure if Uint8Array is supported.
+When we read on image in React Native, it gives us a base64. Uint8Array has methods to read base64: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+
+---
+Seems that new IPTC data is stored as XMP data. (HEIC files only support this format.)
+See: https://exiftool.org/forum/index.php?topic=15241.0
+
+Maybe I should focus on reading XMP data rather than just IPTC.
+
+---
+All the XMP data I can extract:
+
+https://www.iptc.org/std/photometadata/specification/IPTC-PhotoMetadata#xmp-namespaces-and-identifiers
+
+---
+Note for writing:
+Maximum length of the XMP can be 64k

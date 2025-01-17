@@ -1,0 +1,12 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["prettier", "@typescript-eslint", "eslint-plugin-tsdoc"],
+  "env": {
+    "browser": true,
+  },
+  "extends": ["airbnb", "airbnb/hooks", "prettier", "plugin:@typescript-eslint/recommended"],
+  "rules": {
+    "prettier/prettier": "error",
+    "eqeqeq": "smart",
+  },
+}
