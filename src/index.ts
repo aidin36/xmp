@@ -1,5 +1,6 @@
-import { jpegExtractXMP } from './jpegUtils'
 import { xmp2js, XMP } from '@aidin36/xmp2js'
+import { jpegExtractXMP } from './jpegUtils'
+import { heicExtractXmp } from './heicUtils'
 
 export { XMP, XMPNode } from '@aidin36/xmp2js'
 
@@ -27,3 +28,12 @@ export const readXmpFromJpegAsJs = (image: Uint8Array): XMP | undefined => {
   }
   return xmp2js(xmpString)
 }
+
+/**
+ * Extracts the XMP string from a HEIC file.
+ * It returns the string as-is without modifications.
+ *
+ * @param image - Data of the HEIC image in the form of Uint8Array
+ * @returns XMP as a string, or undefined if no XMP data found in the provided file.
+ */
+export const readXmpFromHeic = (image: Uint8Array): string | undefined => heicExtractXmp(image)

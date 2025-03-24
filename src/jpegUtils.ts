@@ -1,4 +1,4 @@
-import { numberFromBytes, binArray2String } from './utils'
+import { bytes2Uint16, binArray2String } from './utils'
 
 const FF = 0xff
 // Start Of Image (FF D8)
@@ -32,7 +32,7 @@ const extractAppSegments = (image: Uint8Array, marker: number): Uint8Array[] => 
     }
 
     // The next two bytes are the size of the APP segment.
-    const segmentSize = numberFromBytes(remainderData[segmentStartIndex + 2], remainderData[segmentStartIndex + 3])
+    const segmentSize = bytes2Uint16(remainderData.subarray(segmentStartIndex + 2, segmentStartIndex + 4))
 
     // We want the bytes from after the 'size' marker until the end of data. So we start from
     // four (two for the APP marker and two for the size.)
