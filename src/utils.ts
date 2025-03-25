@@ -1,7 +1,9 @@
 /**
  * @internal
+ *
+ * Javascript strings are UTF-16. But our data is UTF-8.
+ * We only use this method to decode ASCII strings. e.g. ID of the Boxes, etc.
  */
-// TODO: Make sure it decodes from UTF-8
 export const binArray2String = (array: Uint8Array) => array.reduce((acc, byte) => acc + String.fromCharCode(byte), '')
 
 /**

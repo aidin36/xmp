@@ -94,10 +94,6 @@ const findBox = (image: Uint8Array, boxType: string, from: number = 0): Box | un
   const actualSize = foundSize === 0 ? image.length - from : foundSize
   const foundType = binArray2String(subImage.subarray(4, 8))
 
-  console.log(
-    `box=${foundType} size=${actualSize}  from=${from} 25 bytes= ${subImage.subarray(0, 25)}  50 chars= ${binArray2String(subImage.subarray(0, 50))}\n`
-  )
-
   if (foundType === boxType) {
     const dataStartIndex = from + 8
     const dataEndIndex = from + actualSize
@@ -231,13 +227,8 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
     version === 2 ? bytes2Uint32(ilocBox.data.subarray(6, 10)) : bytes2Uint16(ilocBox.data.subarray(6, 8))
   const itemsBuffer = version === 2 ? ilocBox.data.subarray(10) : ilocBox.data.subarray(8)
 
-  console.log(
-    `ilocBox: version=${version}  itemCount=${itemCount} baseOffsetSize=${baseOffsetSize} offsetSize=${offsetSize}  lengthSize=${lengthSize}  itemsBuffer=${itemsBuffer}`
-  )
-
   let curIndex = 0
   for (let itemNum = 0; itemNum < itemCount; itemNum++) {
-    console.log('reading next item. CurIndex=', curIndex)
     if (curIndex >= itemsBuffer.length) {
       throw Error(`Invalid iloc Box. Expected to find ${itemCount} items, but found less.`)
     }
@@ -259,22 +250,17 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
     const dataReferenceIndex = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
     curIndex = curIndex + 2
 
-    console.log(`Found item id=${itemId}, dataReferenceIndex=${dataReferenceIndex}`)
-
-    let itemBaseOffset = 0
-    if (baseOffsetSize === 4) {
-      itemBaseOffset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
-    }
-    if (baseOffsetSize === 8) {
-      itemBaseOffset = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
-    }
+    //let itemBaseOffset = 0
+    //if (baseOffsetSize === 4) {
+    //  itemBaseOffset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
+    //}
+    //if (baseOffsetSize === 8) {
+    //  itemBaseOffset = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
+    //}
     curIndex = curIndex + baseOffsetSize
 
     const extentCount = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
     curIndex = curIndex + 2
-
-    // For now, skipping until the end of the item.
-    console.log('extentCount=', extentCount, 'itemBaseOffset=', itemBaseOffset)
 
     const extendsList = []
 
@@ -318,7 +304,6 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
     // find the start of the next item.
     if (itemId === metadataId) {
       // We found our XMP data!
-      console.log('Found the XMP item! At last!')
       // data-reference-index is either zero (‘this file’) or a 1‐based index into the data references in the
       // data information box
       if (dataReferenceIndex !== 0) {
@@ -332,7 +317,7 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   return undefined
 }
 
-export const heicExtractXmp = (image: Uint8Array): string | undefined => {
+export const heicExtractXmp = (image: Uint8Array): Uint8Array | undefined => {
   const metaBox = findBox(image, 'meta')
 
   if (metaBox == null) {
@@ -354,7 +339,6 @@ export const heicExtractXmp = (image: Uint8Array): string | undefined => {
 
   // Now, we find the Metadata ID (from an INFE Box inside the IINF Box)
   const metadataId = findXmpMetadataID(iinfBox.data)
-  console.log('metadata ID=', metadataId)
 
   if (metadataId == null) {
     return undefined
@@ -366,11 +350,27 @@ export const heicExtractXmp = (image: Uint8Array): string | undefined => {
     throw Error('Metadata ID found in the file, but relevant iLoc Box could not be found.')
   }
 
-  // TODO: Continue: Sort the extends by 'index'. Then concat them together.
+  // XMP data can be spreaded between multiple "extends". We're merging them.
+  if (xmpIlocExtends.length === 1) {
+    const extend = xmpIlocExtends[0]
+    return image.subarray(extend.offset, extend.offset + extend.length)
+  }
 
-  console.log(
-    `Found these iLoc extends info: ${JSON.stringify(xmpIlocExtends)} It points to: ${binArray2String(image.subarray(xmpIlocExtends[0].offset, xmpIlocExtends[0].offset + xmpIlocExtends[0].length))}`
-  )
+  // TODO: Write a test for when XMP is inside multiple extends.
 
-  return undefined
+  // Note: This method is ten times faster than using spread syntax.
+  const binaryArrays = xmpIlocExtends
+    .sort((a, b) => a.index - b.index)
+    .map((extend) => image.subarray(extend.offset, extend.offset + extend.length))
+
+  const totalLengh = binaryArrays.reduce((acc, binArray) => acc + binArray.length, 0)
+  const concatedArrays = new Uint8Array(totalLengh)
+
+  let offset = 0
+  binaryArrays.forEach((binArray) => {
+    concatedArrays.set(binArray, offset)
+    offset += binArray.length
+  })
+
+  return concatedArrays
 }

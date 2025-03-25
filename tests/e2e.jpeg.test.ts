@@ -8,8 +8,6 @@ describe('JPEG std 2024.1 file', () => {
   const fileContent = new Uint8Array(fs.readFileSync('./tests/images/IPTC-PhotometadataRef-Std2024.1.jpg'))
 
   it('should read the file as string', () => {
-    const xmpStr = readXmpFromJpeg(fileContent)
-    fs.writeFileSync('/tmp/xmp', xmpStr!)
     expect(readXmpFromJpeg(fileContent)).toEqual(iptcStd2024Xmp)
   })
 
