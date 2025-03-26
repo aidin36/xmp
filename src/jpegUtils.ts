@@ -67,7 +67,7 @@ const extractAppSegments = (image: Uint8Array, marker: number): Uint8Array[] => 
  * Finds and returns XMP data as string.
  * Returns 'undefined' if nothing found.
  */
-export const jpegExtractXMP = (image: Uint8Array): string | undefined => {
+export const jpegExtractXMP = (image: Uint8Array): Uint8Array | undefined => {
   if (image.length < 3) {
     throw Error('The file is empty or is not an image')
   }
@@ -94,5 +94,5 @@ export const jpegExtractXMP = (image: Uint8Array): string | undefined => {
 
   // XXX: Can we change the algorithm so we don't have to search for the 'null' twice?
   const nullIndex = xmpSegment.findIndex((element) => element === 0x00)
-  return binArray2String(xmpSegment.subarray(nullIndex + 1))
+  return xmpSegment.subarray(nullIndex + 1)
 }

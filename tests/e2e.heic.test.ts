@@ -27,3 +27,5 @@ describe('HEIC Digikam Tags file', () => {
     expect(readXmpFromHeic(fileContent)).toEqual(heicDigikamTagsXmp)
   })
 })
+
+// TODO: A test when there's no XMP data in the file.

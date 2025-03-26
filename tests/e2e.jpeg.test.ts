@@ -31,3 +31,5 @@ describe('JPEG std 2024.1 file', () => {
     expect(readXmpFromJpegAsJs(fileContent)).toEqual(iptcStd2024Js)
   })
 })
+
+// TODO: A test when there's no XMP data in the file.
