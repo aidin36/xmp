@@ -6,9 +6,9 @@ const SOI = 0xd8
 // Start of APP segments are FF + a marker
 const APP1 = 0xe1
 // End Of Image (FF D9)
-//const EOI = 0xd9
+// const EOI = 0xd9
 
-const isJpeg = (image: Uint8Array) => image[0] == FF && image[1] == SOI
+const isJpeg = (image: Uint8Array) => image[0] === FF && image[1] === SOI
 
 /**
  * Finds and returns APP segments that starts with the 'marker'.
@@ -19,9 +19,10 @@ const extractAppSegments = (image: Uint8Array, marker: number): Uint8Array[] => 
   // See: https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
   // https://www.w3.org/Graphics/JPEG/jfif3.pdf
 
-  const isStartOfAppSegment = (element: number, i: number, image: Uint8Array) => element == FF && image[i + 1] == marker
+  const isStartOfAppSegment = (element: number, i: number, imageData: Uint8Array) =>
+    element === FF && imageData[i + 1] === marker
 
-  let result: Uint8Array[] = []
+  const result: Uint8Array[] = []
   let remainderData = image
 
   while (remainderData.length > 0) {

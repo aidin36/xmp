@@ -189,7 +189,7 @@ const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
       }
     }
     // Continue checking other infe Boxes
-    curIndex = curIndex + infeBox.size
+    curIndex += infeBox.size
     infeBox = findBox(iinfBox.subarray(curIndex), 'infe')
   }
 
@@ -199,7 +199,7 @@ const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
 
 const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   // There's only one 'iloc' Box inside the image.
-  let ilocBox = findBox(metaBoxesData, 'iloc')
+  const ilocBox = findBox(metaBoxesData, 'iloc')
 
   if (ilocBox == null) {
     return undefined
@@ -218,10 +218,12 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   // 1 byte version, 3 bytes flags, then 2 bytes 'values4'
   const values4 = bytes2Uint16(ilocBox.data.subarray(4, 6))
 
+  /* eslint-disable no-bitwise */
   const offsetSize = (values4 >> 12) & 0xf
   const lengthSize = (values4 >> 8) & 0xf
   const baseOffsetSize = (values4 >> 4) & 0xf
   const indexSize = version === 0 ? 0 : values4 & 0xf
+  /* eslint-enable no-bitwise */
 
   const itemCount =
     version === 2 ? bytes2Uint32(ilocBox.data.subarray(6, 10)) : bytes2Uint16(ilocBox.data.subarray(6, 8))
@@ -244,23 +246,23 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
     if (version === 1 || version === 2) {
       // Construction method that we're ignoring at the moment.
       // 12 bits reserved, 4 bits construction method.
-      curIndex = curIndex + 2
+      curIndex += 2
     }
 
     const dataReferenceIndex = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
-    curIndex = curIndex + 2
+    curIndex += 2
 
-    //let itemBaseOffset = 0
-    //if (baseOffsetSize === 4) {
-    //  itemBaseOffset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
-    //}
-    //if (baseOffsetSize === 8) {
-    //  itemBaseOffset = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
-    //}
-    curIndex = curIndex + baseOffsetSize
+    // let itemBaseOffset = 0
+    // if (baseOffsetSize === 4) {
+    //   itemBaseOffset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
+    // }
+    // if (baseOffsetSize === 8) {
+    //   itemBaseOffset = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
+    // }
+    curIndex += baseOffsetSize
 
     const extentCount = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
-    curIndex = curIndex + 2
+    curIndex += 2
 
     const extendsList = []
 
@@ -270,30 +272,30 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
       if ((version === 1 || version === 2) && indexSize > 0) {
         if (indexSize === 4) {
           extend.index = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
-          curIndex = curIndex + 4
+          curIndex += 4
         }
         if (indexSize === 8) {
           extend.index = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
-          curIndex = curIndex + 8
+          curIndex += 8
         }
       }
 
       if (offsetSize === 4) {
         extend.offset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
-        curIndex = curIndex + 4
+        curIndex += 4
       }
       if (offsetSize === 8) {
         extend.offset = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
-        curIndex = curIndex + 8
+        curIndex += 8
       }
 
       if (lengthSize === 4) {
         extend.length = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
-        curIndex = curIndex + 4
+        curIndex += 4
       }
       if (lengthSize === 8) {
         extend.length = bytes2Uint64(itemsBuffer.subarray(curIndex, curIndex + 8))
-        curIndex = curIndex + 8
+        curIndex += 8
       }
 
       extendsList.push(extend)

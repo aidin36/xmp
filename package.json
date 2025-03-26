@@ -10,7 +10,8 @@
     "tsc:watch": "tsc --watch",
     "pretty": "prettier './src/**/*.ts*' --write --config .prettierrc",
     "lint": "eslint --quiet './src/**/*.ts*'",
-    "test": "jest"
+    "test": "jest",
+    "coverage": "jest --coverage"
   },
   "repository": {
     "type": "git",

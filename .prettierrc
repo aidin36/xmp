@@ -3,5 +3,19 @@
   "trailingComma": "es5",
   "semi": false,
   "singleQuote": true,
-  "jsxSingleQuote": true
+  "jsxSingleQuote": true,
+  "overrides": [
+    {
+      "files": "*.json",
+      "options": {
+        "trailingComma": "none"
+      }
+    },
+    {
+      "files": ".eslintrc",
+      "options": {
+        "trailingComma": "none"
+      }
+    }
+  ]
 }
