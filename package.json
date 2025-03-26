@@ -1,7 +1,7 @@
 {
-  "name": "iptc",
-  "version": "0.0.1",
-  "description": "Read and write IPTC metadata",
+  "name": "@aidin36/xmp",
+  "version": "0.1.0",
+  "description": "Read and write XMP metadata from/to various media formats",
   "private": true,
   "main": "index.js",
   "types": "index.d.ts",
@@ -15,19 +15,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/aidin36/iptc"
+    "url": "https://github.com/aidin36/xmp"
   },
   "keywords": [
     "iptc",
+    "xmp",
     "jpeg",
+    "heic",
     "metadata"
   ],
   "author": "Aidin Gharibnavaz",
   "license": "LGPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/aidin36/iptc/issues"
+    "url": "https://github.com/aidin36/xmp/issues"
   },
-  "homepage": "https://github.com/aidin36/iptc#readme",
+  "homepage": "https://github.com/aidin36/xmp#readme",
   "volta": {
     "node": "22.12.0"
   },
