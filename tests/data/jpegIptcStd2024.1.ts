@@ -1,7 +1,8 @@
 // This is the exact string I extracted from the JPEG file provided by IPTC standard.
 // https://iptc.org/standards/photo-metadata/iptc-standard/
 
-export const iptcStd2024Xmp = `<?xpacket begin='ï»¿' id='W5M0MpCehiHzreSzNTczkc9d'?>
+// eslint-disable-next-line no-irregular-whitespace
+export const iptcStd2024Xmp = `<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
 <x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 13.09'>
 <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
 
