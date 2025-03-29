@@ -11,7 +11,6 @@ fi
 
 npm install
 rm -rf dist/*
-npm run pretty
 npm run lint
 npm run tsc
 npm test
