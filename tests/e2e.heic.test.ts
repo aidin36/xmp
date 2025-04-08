@@ -17,15 +17,28 @@
 import { describe, it, expect } from '@jest/globals'
 import fs from 'fs'
 
-import { readXmpFromHeic } from '../src'
+import { readXmpFromHeic, writeXmpToHeicAsString } from '../src'
 import { heicDigikamTagsXmp } from './data/heicDigikamTags'
 
 describe('HEIC Digikam Tags file', () => {
-  const fileContent = new Uint8Array(fs.readFileSync('./tests/images/digikam-tags.heic'))
-
   it('should extract xmp string', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/digikam-tags.heic'))
+
     expect(readXmpFromHeic(fileContent)).toEqual(heicDigikamTagsXmp)
+  })
+
+  it('should return undefined when there is no xmp', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp.heic'))
+
+    expect(readXmpFromHeic(fileContent)).toEqual(undefined)
   })
 })
 
-// TODO: A test when there's no XMP data in the file.
+describe('HEIC write', () => {
+  it('should write to an empty file', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp.heic'))
+    const modifiedImage = writeXmpToHeicAsString(fileContent, heicDigikamTagsXmp)
+
+    expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
+  })
+})

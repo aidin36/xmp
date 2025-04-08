@@ -16,7 +16,8 @@
 
 import { xmp2js, XMP } from '@aidin36/xmp2js'
 import { jpegExtractXMP } from './jpegUtils'
-import { heicExtractXmp } from './heicUtils'
+import { heicExtractXmp } from './heicReader'
+import { heicWriteOrUpdateXmp } from './heicWriter'
 
 export { XMP, XMPNode } from '@aidin36/xmp2js'
 
@@ -134,4 +135,36 @@ export const readXmpFromHeicAsJs = (image: Uint8Array): XMP | undefined => {
     return undefined
   }
   return xmp2js(xmpStr)
+}
+
+/**
+ * Writes the XMP data to an image file in HEIC format.
+ * This is the most portable overload. Because not every Javascript
+ * environment supports TextEncoder. In those cases, you can encode your
+ * XMP with what is available and pass it.
+ *
+ * Note that XMP needs to be in UTF-8 encoding.
+ *
+ * @param image - Data of the HEIC image in the form of Uint8Array
+ * @param xmp - Encoded XMP
+ * @returns The modified image
+ */
+export const writeXmpToHeic = (image: Uint8Array, xmp: Uint8Array): Uint8Array => heicWriteOrUpdateXmp(image, xmp)
+
+/**
+ * Writes the XMP data to an image file in HEIC format.
+ *
+ * @param image - Data of the HEIC image in the form of Uint8Array
+ * @param xmp - Encoded XMP
+ * @returns The modified image
+ */
+export const writeXmpToHeicAsString = (image: Uint8Array, xmp: string): Uint8Array => {
+  if (TextEncoder === undefined) {
+    throw Error('This method needs TextEncoder which is not available in your environment. You can try other methods.')
+  }
+
+  const encoder = new TextEncoder()
+  const encodedXmp = encoder.encode(xmp)
+
+  return heicWriteOrUpdateXmp(image, encodedXmp)
 }

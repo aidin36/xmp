@@ -79,15 +79,26 @@ import { bytes2Uint32, binArray2String, bytes2Uint16, bytes2Uint64 } from './uti
 
 // TODO: These images might be useful for testing: https://github.com/nokiatech/heif/tree/gh-pages/content/images
 
-type Box = {
+export type Box = {
   size: number
   type: string
+  boxStartIndex: number
   dataStartIndex: number
-  dataEndIndex: number
+  boxEndIndex: number
   data: Uint8Array
 }
 
-const MIME = new Uint8Array([109, 105, 109, 101])
+export type IlocItem = {
+  // These indexes are relative to the start of the 'meta' Box.
+  startIndex: number
+  endIndex: number
+  itemId: number
+  dataReferenceIndex: number
+  extentCount: number
+  extends: Array<{ index: number; offset: number; length: number }>
+}
+
+const MIME = [109, 105, 109, 101]
 
 /**
  * @internal
@@ -97,7 +108,7 @@ const MIME = new Uint8Array([109, 105, 109, 101])
  *
  * @return Box info or undefined if the box not found.
  */
-const findBox = (image: Uint8Array, boxType: string, from: number = 0): Box | undefined => {
+export const findBox = (image: Uint8Array, boxType: string, from: number = 0): Box | undefined => {
   if (from >= image.length) {
     return undefined
   }
@@ -112,14 +123,15 @@ const findBox = (image: Uint8Array, boxType: string, from: number = 0): Box | un
 
   if (foundType === boxType) {
     const dataStartIndex = from + 8
-    const dataEndIndex = from + actualSize
+    const boxEndIndex = from + actualSize
 
     return {
       size: foundSize,
       type: foundType,
+      boxStartIndex: from,
       dataStartIndex,
-      dataEndIndex,
-      data: image.subarray(dataStartIndex, dataEndIndex),
+      boxEndIndex,
+      data: image.subarray(dataStartIndex, boxEndIndex),
     }
   }
 
@@ -127,13 +139,37 @@ const findBox = (image: Uint8Array, boxType: string, from: number = 0): Box | un
 }
 
 /**
+ * @internal
+ *
+ * Finds 'meta' box. Returns undefined it the box not found.
+ * 'meta' has multiple Boxes inside it. The 'metaInnerBoxesData' property will
+ * be the unparsed data of those Boxes.
+ */
+export const findMetaBox = (image: Uint8Array) => {
+  const metaBox = findBox(image, 'meta')
+
+  if (metaBox == null) {
+    return undefined
+  }
+
+  // Inside the 'meta' Box, first byte is the version, and the three bytes after
+  // that are flags. (We're ignoring them for now.)
+  // So Boxes start from the fifth byte.
+  const metaInnerBoxesData = image.subarray(metaBox.dataStartIndex + 4, metaBox.boxEndIndex)
+
+  return { ...metaBox, metaInnerBoxesData }
+}
+
+/**
+ * @internal
+ *
  * Finds the INFE Box within the IINF Box that contains the ID of the IREF Box
  * we need.
  *
  * @returns Item ID (Metadata ID) inside the INFE Box. Returns undefined if
  *   no such box found.
  */
-const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
+export const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
   // There are multiple infe Boxes within the iinf Box. We're looking for one
   // that has 'application/rdf+xml' meme.
 
@@ -166,11 +202,12 @@ const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
   // One byte 'version' and three bytes 'flags'. Depending on the 'version',
   // data starts 2 or 4 bytes after that.
   // (I don't know the logic! Saw it in other codes.)
+  // TODO: I found out these 2 or 4 bytes are "entry count". I should use it.
   const startOfBoxes = 4 + dataOffset
 
   let curIndex = startOfBoxes
 
-  let infeBox = findBox(iinfBox.subarray(curIndex), 'infe')
+  let infeBox = findBox(iinfBox, 'infe', curIndex)
   while (infeBox != null) {
     const infeVersion = infeBox.data[0]
 
@@ -206,14 +243,14 @@ const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
     }
     // Continue checking other infe Boxes
     curIndex += infeBox.size
-    infeBox = findBox(iinfBox.subarray(curIndex), 'infe')
+    infeBox = findBox(iinfBox, 'infe', curIndex)
   }
 
   // No Box found that refers to XMP data.
   return undefined
 }
 
-const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
+export const parseIlocBox = (metaBoxesData: Uint8Array) => {
   // There's only one 'iloc' Box inside the image.
   const ilocBox = findBox(metaBoxesData, 'iloc')
 
@@ -241,6 +278,11 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   const indexSize = version === 0 ? 0 : values4 & 0xf
   /* eslint-enable no-bitwise */
 
+  // There's no way to detect the start and end of each Item and Extend.
+  // So we need to go through the buffer and parse it byte by byte to find out.
+
+  const result: IlocItem[] = []
+
   const itemCount =
     version === 2 ? bytes2Uint32(ilocBox.data.subarray(6, 10)) : bytes2Uint16(ilocBox.data.subarray(6, 8))
   const itemsBuffer = version === 2 ? ilocBox.data.subarray(10) : ilocBox.data.subarray(8)
@@ -251,9 +293,18 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
       throw Error(`Invalid iloc Box. Expected to find ${itemCount} items, but found less.`)
     }
 
+    const item: IlocItem = {
+      startIndex: curIndex,
+      endIndex: -1,
+      itemId: -1,
+      dataReferenceIndex: -1,
+      extentCount: -1,
+      extends: [],
+    }
+
     // Items have a predefined structure. So, we're reading them byte by byte based on the version.
     // TODO: Draw the structure table here, from the standard PDF.
-    const itemId =
+    item.itemId =
       version === 2
         ? bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
         : bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
@@ -265,7 +316,7 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
       curIndex += 2
     }
 
-    const dataReferenceIndex = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
+    item.dataReferenceIndex = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
     curIndex += 2
 
     // let itemBaseOffset = 0
@@ -277,12 +328,10 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
     // }
     curIndex += baseOffsetSize
 
-    const extentCount = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
+    item.extentCount = bytes2Uint16(itemsBuffer.subarray(curIndex, curIndex + 2))
     curIndex += 2
 
-    const extendsList = []
-
-    for (let extentNum = 0; extentNum < extentCount; extentNum++) {
+    for (let extentNum = 0; extentNum < item.extentCount; extentNum++) {
       const extend = { index: 0, offset: 0, length: 0 }
 
       if ((version === 1 || version === 2) && indexSize > 0) {
@@ -314,42 +363,60 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
         curIndex += 8
       }
 
-      extendsList.push(extend)
+      item.extends.push(extend)
     }
 
-    // Even when the itemId is not what we want, we have to do all above.
-    // Because we don't know the length of the item, we have to parse it to
-    // find the start of the next item.
-    if (itemId === metadataId) {
-      // We found our XMP data!
-      // data-reference-index is either zero (‘this file’) or a 1‐based index into the data references in the
-      // data information box
-      if (dataReferenceIndex !== 0) {
-        throw Error('The XMP data is not stored in the current file. This is not supported yet.')
-      }
-
-      return extendsList
-    }
+    item.endIndex = curIndex
+    result.push(item)
   }
 
-  return undefined
+  return { ilocBox, ilocItems: result }
+}
+
+/**
+ * Finds an item in the ILOC Box with 'Item ID === metadataId'.
+ * Returns its "extends".
+ * Will return 'undefined' if no such item found.
+ */
+const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
+  const iloc = parseIlocBox(metaBoxesData)
+
+  if (iloc == null) {
+    return undefined
+  }
+
+  const { ilocItems } = iloc
+
+  const filteredItems = ilocItems.filter((item) => item.itemId === metadataId)
+
+  if (filteredItems.length === 0) {
+    return undefined
+  }
+  if (filteredItems.length > 1) {
+    throw Error(`Found more than one ILOC item with the same Item ID. Items: ${JSON.stringify(filteredItems)}`)
+  }
+
+  const xmpItem = filteredItems[0]
+
+  // data-reference-index is either zero (‘this file’) or a 1‐based index into the data references in the
+  // data information box
+  if (xmpItem.dataReferenceIndex !== 0) {
+    throw Error('The XMP data is not stored in the current file. This is not supported yet.')
+  }
+
+  return xmpItem.extends
 }
 
 export const heicExtractXmp = (image: Uint8Array): Uint8Array | undefined => {
-  const metaBox = findBox(image, 'meta')
+  const metaBox = findMetaBox(image)
 
   if (metaBox == null) {
     return undefined
   }
 
-  // Inside the 'meta' Box, first byte is the version, and the three bytes after
-  // that are flags. (We're ignoring them for now.)
-  // So Boxes start from the fifth byte.
-  const metaBoxesData = image.subarray(metaBox.dataStartIndex + 4, metaBox.dataEndIndex)
-
-  // There are multiple Boxes inside the 'meta' Box. We're using the same method
-  // but we start from within the box.
-  const iinfBox = findBox(metaBoxesData, 'iinf')
+  // There are multiple Boxes inside the 'meta' Box. We're searching within the
+  // Meta Box for our 'iinf' Box.
+  const iinfBox = findBox(metaBox.metaInnerBoxesData, 'iinf')
 
   if (iinfBox == null) {
     return undefined
@@ -362,7 +429,7 @@ export const heicExtractXmp = (image: Uint8Array): Uint8Array | undefined => {
     return undefined
   }
 
-  const xmpIlocExtends = findXMPItemInIloc(metadataId, metaBoxesData)
+  const xmpIlocExtends = findXMPItemInIloc(metadataId, metaBox.metaInnerBoxesData)
 
   if (xmpIlocExtends == null || xmpIlocExtends.length === 0) {
     throw Error('Metadata ID found in the file, but relevant iLoc Box could not be found.')
