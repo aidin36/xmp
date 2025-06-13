@@ -88,6 +88,21 @@ export type Box = {
   data: Uint8Array
 }
 
+export type MetaBox = Box & {
+  metaInnerBoxesData: Uint8Array
+}
+
+export type IlocItemExtend = {
+  index: number
+  offset: number
+  length: number
+  /** Points to the location of the offset field in the image array. It's
+   * relative to the start of the iloc Box's data. We use this to update
+   * the offset field in the writer.
+   */
+  offsetFieldRelativeIndex: number
+}
+
 export type IlocItem = {
   // These indexes are relative to the start of the 'meta' Box.
   startIndex: number
@@ -95,7 +110,16 @@ export type IlocItem = {
   itemId: number
   dataReferenceIndex: number
   extentCount: number
-  extends: Array<{ index: number; offset: number; length: number }>
+  extends: IlocItemExtend[]
+}
+
+export type IlocBox = Box & {
+  version: number
+  baseOffsetSize: number
+  offsetSize: number
+  lengthSize: number
+  indexSize: number
+  ilocItems: IlocItem[]
 }
 
 const MIME = [109, 105, 109, 101]
@@ -104,7 +128,7 @@ const MIME = [109, 105, 109, 101]
  * @internal
  * Finds the first box with the specified type.
  *
- * @param from - Where to start the search. It's for recursion. You shouldn't pass it.
+ * @param from - Where to start the search.
  *
  * @return Box info or undefined if the box not found.
  */
@@ -145,7 +169,7 @@ export const findBox = (image: Uint8Array, boxType: string, from: number = 0): B
  * 'meta' has multiple Boxes inside it. The 'metaInnerBoxesData' property will
  * be the unparsed data of those Boxes.
  */
-export const findMetaBox = (image: Uint8Array) => {
+export const findMetaBox = (image: Uint8Array): MetaBox | undefined => {
   const metaBox = findBox(image, 'meta')
 
   if (metaBox == null) {
@@ -227,6 +251,10 @@ export const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
 
       // TODO: Is there a flag or something that tells me the data is not inside the INFE box, but I should find the IREF & CDSC? Should I check the length of the box?
 
+      console.log(
+        `Found INFE Box: itemId=${itemId} itemType=${binArray2String(infeBox.data.subarray(itemTypeIndex, itemTypeIndex + 4))} item name? ${binArray2String(infeBox.data.subarray(itemTypeIndex + 5, itemTypeIndex + 5 + 19))}`
+      )
+
       // First four bytes should be 'mime'
       if (
         infeBox.data.at(itemTypeIndex) === MIME.at(0) &&
@@ -250,7 +278,7 @@ export const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
   return undefined
 }
 
-export const parseIlocBox = (metaBoxesData: Uint8Array) => {
+export const parseIlocBox = (metaBoxesData: Uint8Array): IlocBox | undefined => {
   // There's only one 'iloc' Box inside the image.
   const ilocBox = findBox(metaBoxesData, 'iloc')
 
@@ -285,7 +313,12 @@ export const parseIlocBox = (metaBoxesData: Uint8Array) => {
 
   const itemCount =
     version === 2 ? bytes2Uint32(ilocBox.data.subarray(6, 10)) : bytes2Uint16(ilocBox.data.subarray(6, 8))
-  const itemsBuffer = version === 2 ? ilocBox.data.subarray(10) : ilocBox.data.subarray(8)
+  const itemsStartIndex = version === 2 ? 10 : 8
+  const itemsBuffer = ilocBox.data.subarray(itemsStartIndex)
+
+  console.log(
+    `parseIlocBox: version=${version} itemCount=${itemCount} offsetSize=${offsetSize} lengthSize=${lengthSize} baseOffsetSize=${baseOffsetSize} indexSize=${indexSize}`
+  )
 
   let curIndex = 0
   for (let itemNum = 0; itemNum < itemCount; itemNum++) {
@@ -332,7 +365,7 @@ export const parseIlocBox = (metaBoxesData: Uint8Array) => {
     curIndex += 2
 
     for (let extentNum = 0; extentNum < item.extentCount; extentNum++) {
-      const extend = { index: 0, offset: 0, length: 0 }
+      const extend = { index: 0, offset: 0, length: 0, offsetFieldRelativeIndex: 0 }
 
       if ((version === 1 || version === 2) && indexSize > 0) {
         if (indexSize === 4) {
@@ -345,6 +378,7 @@ export const parseIlocBox = (metaBoxesData: Uint8Array) => {
         }
       }
 
+      extend.offsetFieldRelativeIndex = itemsStartIndex + curIndex
       if (offsetSize === 4) {
         extend.offset = bytes2Uint32(itemsBuffer.subarray(curIndex, curIndex + 4))
         curIndex += 4
@@ -370,7 +404,11 @@ export const parseIlocBox = (metaBoxesData: Uint8Array) => {
     result.push(item)
   }
 
-  return { ilocBox, ilocItems: result }
+  console.log(
+    `parsed ILOC=${JSON.stringify({ version, baseOffsetSize, offsetSize, lengthSize, indexSize, ilocItems: result })} data=${ilocBox.data}`
+  )
+
+  return { ...ilocBox, version, baseOffsetSize, offsetSize, lengthSize, indexSize, ilocItems: result }
 }
 
 /**
@@ -388,6 +426,10 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   const { ilocItems } = iloc
 
   const filteredItems = ilocItems.filter((item) => item.itemId === metadataId)
+
+  console.log(
+    `Searching for metadataId=${metadataId} in iloc boxes. items count: ${ilocItems.length} filteredItems=${JSON.stringify(filteredItems)}`
+  )
 
   if (filteredItems.length === 0) {
     return undefined

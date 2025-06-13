@@ -62,7 +62,7 @@ export const bytes2Uint64 = (bytes: Uint8Array): number =>
  * Converts Unsigned 16 bits number to big-endian binary array.
  */
 export const uint16ToBytes = (num: number) => {
-  const array = new Uint8Array(4)
+  const array = new Uint8Array(2)
 
   // >>> is used cause it's unsigned
   array[0] = (num >>> 8) & 0xff
@@ -84,6 +84,27 @@ export const uint32ToBytes = (num: number) => {
   array[1] = (num >>> 16) & 0xff
   array[2] = (num >>> 8) & 0xff
   array[3] = num & 0xff
+
+  return array
+}
+
+/**
+ * @internal
+ *
+ * Converts Unsigned 64 bits number to big-endian binary array.
+ */
+export const uint64ToBytes = (num: number) => {
+  const array = new Uint8Array(4)
+
+  // >>> is used cause it's unsigned
+  array[0] = (num >>> 56) & 0xff
+  array[1] = (num >>> 48) & 0xff
+  array[2] = (num >>> 40) & 0xff
+  array[3] = (num >>> 32) & 0xff
+  array[4] = (num >>> 24) & 0xff
+  array[5] = (num >>> 16) & 0xff
+  array[6] = (num >>> 8) & 0xff
+  array[7] = num & 0xff
 
   return array
 }

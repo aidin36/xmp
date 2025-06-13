@@ -16,7 +16,7 @@
 
 import { describe, it, expect } from '@jest/globals'
 
-import { bytes2Uint16, uint32ToBytes, bytes2Uint32, bytes2Uint64 } from '../src/utils'
+import { bytes2Uint16, uint32ToBytes, bytes2Uint32, bytes2Uint64, uint16ToBytes } from '../src/utils'
 
 describe('converting bytes to number', () => {
   it('bytes2Uint16', () => {
@@ -47,6 +47,14 @@ describe('converting bytes to number', () => {
 })
 
 describe('converting number to bytes', () => {
+  it('uint16ToBytes', () => {
+    expect(uint16ToBytes(0)).toEqual(new Uint8Array([0, 0]))
+    expect(uint16ToBytes(8)).toEqual(new Uint8Array([0, 8]))
+    expect(uint16ToBytes(255)).toEqual(new Uint8Array([0, 0xff]))
+    expect(uint16ToBytes(314)).toEqual(new Uint8Array([0x01, 0x3a]))
+    expect(uint16ToBytes(65535)).toEqual(new Uint8Array([0xff, 0xff]))
+  })
+
   it('uint32ToBytes', () => {
     expect(uint32ToBytes(0)).toEqual(new Uint8Array([0, 0, 0, 0]))
     expect(uint32ToBytes(8)).toEqual(new Uint8Array([0, 0, 0, 0x08]))
