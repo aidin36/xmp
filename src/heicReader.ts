@@ -251,10 +251,6 @@ export const findXmpMetadataID = (iinfBox: Uint8Array): number | undefined => {
 
       // TODO: Is there a flag or something that tells me the data is not inside the INFE box, but I should find the IREF & CDSC? Should I check the length of the box?
 
-      console.log(
-        `Found INFE Box: itemId=${itemId} itemType=${binArray2String(infeBox.data.subarray(itemTypeIndex, itemTypeIndex + 4))} item name? ${binArray2String(infeBox.data.subarray(itemTypeIndex + 5, itemTypeIndex + 5 + 19))}`
-      )
-
       // First four bytes should be 'mime'
       if (
         infeBox.data.at(itemTypeIndex) === MIME.at(0) &&
@@ -315,10 +311,6 @@ export const parseIlocBox = (metaBoxesData: Uint8Array): IlocBox | undefined => 
     version === 2 ? bytes2Uint32(ilocBox.data.subarray(6, 10)) : bytes2Uint16(ilocBox.data.subarray(6, 8))
   const itemsStartIndex = version === 2 ? 10 : 8
   const itemsBuffer = ilocBox.data.subarray(itemsStartIndex)
-
-  console.log(
-    `parseIlocBox: version=${version} itemCount=${itemCount} offsetSize=${offsetSize} lengthSize=${lengthSize} baseOffsetSize=${baseOffsetSize} indexSize=${indexSize}`
-  )
 
   let curIndex = 0
   for (let itemNum = 0; itemNum < itemCount; itemNum++) {
@@ -404,10 +396,6 @@ export const parseIlocBox = (metaBoxesData: Uint8Array): IlocBox | undefined => 
     result.push(item)
   }
 
-  console.log(
-    `parsed ILOC=${JSON.stringify({ version, baseOffsetSize, offsetSize, lengthSize, indexSize, ilocItems: result })} data=${ilocBox.data}`
-  )
-
   return { ...ilocBox, version, baseOffsetSize, offsetSize, lengthSize, indexSize, ilocItems: result }
 }
 
@@ -426,10 +414,6 @@ const findXMPItemInIloc = (metadataId: number, metaBoxesData: Uint8Array) => {
   const { ilocItems } = iloc
 
   const filteredItems = ilocItems.filter((item) => item.itemId === metadataId)
-
-  console.log(
-    `Searching for metadataId=${metadataId} in iloc boxes. items count: ${ilocItems.length} filteredItems=${JSON.stringify(filteredItems)}`
-  )
 
   if (filteredItems.length === 0) {
     return undefined

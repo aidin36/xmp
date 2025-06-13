@@ -82,6 +82,7 @@ const correctAllIlocItems = (image: Uint8Array, metaBox: MetaBox, affectedOffset
  * @param offsetSize - Defined by the parent iloc Box
  * @param lengthSize - Defined by the parent iloc Box
  * @param indexSize - Defined by the parent iloc Box
+ * // TODO: Is this statement correct? We didn't use this index here.
  * @param index - In version 1 & 2 the items are sorted by index. Pass the index
  *    this item should have.
  */
@@ -100,7 +101,16 @@ const createIlocItem = (
 
   // We currently not using the construction method.
   const constructionMethod = version === 1 || version === 2 ? [0, 0] : []
-  const baseOffset = baseOffsetSize === 4 ? [0, 0, 0, 0] : [0, 0, 0, 0, 0, 0, 0, 0]
+
+  // BaseOffsetSize can be zero
+  let baseOffset: number[] = []
+  if (baseOffsetSize === 4) {
+    baseOffset = [0, 0, 0, 0]
+  }
+  if (baseOffsetSize === 8) {
+    baseOffset = [0, 0, 0, 0, 0, 0, 0, 0]
+  }
+
   // 2 or 4 bytes Metadata ID (Item ID)
   // 2 bytes construction method.
   // 2 bytes Data Reference Index - Because we're storing XMP in the same file, it's zero.
@@ -108,12 +118,12 @@ const createIlocItem = (
   // 2 bytes Extent Count - we have one.
   const item = [...itemId, ...constructionMethod, 0, 0, ...baseOffset, 0, 1]
 
-  let extendIndex: Uint8Array | Array<never> = []
+  let extendIndex: number[] | Array<never> = []
   if ((version === 1 || version === 2) && indexSize > 0) {
     if (indexSize === 4) {
-      extendIndex = uint32ToBytes(index)
+      extendIndex = [0, 0, 0, 0]
     } else {
-      extendIndex = uint64ToBytes(index)
+      extendIndex = [0, 0, 0, 0, 0, 0, 0, 0]
     }
   }
 
@@ -167,8 +177,6 @@ const createIlocBox = (metadataId: number, dataOffset: number, dataLength: numbe
 
   const ilocBox = new Uint8Array([...boxHeader, ...boxData])
 
-  console.log(`createIlocBox: metadataId=${metadataId} Box=${ilocBox}`)
-
   return { ilocBox, addedSize: ilocBox.length }
 }
 
@@ -199,11 +207,10 @@ const appendNewIlocItem = (iloc: IlocBox, metadataId: number, dataOffset: number
 
   const modifiedData = cloneUint8Array(iloc.data)
 
-  const version = iloc.data[0]
   const newSize = uint32ToBytes(iloc.size + newItem.length)
   // FIXME: We need to check if the item count exceeds the uint16
   const newItemCount =
-    version === 2 ? uint32ToBytes(iloc.ilocItems.length + 1) : uint16ToBytes(iloc.ilocItems.length + 1)
+    iloc.version === 2 ? uint32ToBytes(iloc.ilocItems.length + 1) : uint16ToBytes(iloc.ilocItems.length + 1)
 
   // Setting the new item count
   modifiedData.set(newItemCount, 6)
@@ -315,8 +322,6 @@ const addInfeBox = (image: Uint8Array, metaBox: Box, iinfBox: Box) => {
   const absoluteIinfStartIndex = metaBox.dataStartIndex + 4 + iinfBox.boxStartIndex
   const absoluteIinfEndIndex = metaBox.dataStartIndex + 4 + iinfBox.boxEndIndex
 
-  console.log(`Creating new INFE Box`)
-
   // TODO: It shifts all the data in the image. So we need to find and correct all iloc boxes :/
 
   // We replace the 'size' of the IINF and Meta Boxes, and append our new
@@ -376,10 +381,6 @@ const addNewXmpData = (image: Uint8Array, xmp: Uint8Array, metaBox: MetaBox, met
     )
   }
 
-  console.log(
-    `addNewXmpData: old meta size=${metaBox.size} new meta size=${newMetaBoxSize} new size bytes=${uint32ToBytes(newMetaBoxSize)}`
-  )
-
   // Replacing the meta Box, and at the same time appending the XMP
   // data to the end of the image.
   const concatedImage = concatArrays(
@@ -418,7 +419,6 @@ export const heicWriteOrUpdateXmp = (image: Uint8Array, xmp: Uint8Array): Uint8A
   const iinfBox = findBox(metaBox.metaInnerBoxesData, 'iinf')
 
   if (iinfBox == null) {
-    console.log('No IINF Box. Going to create a new one.')
     // TODO: continue: I add the new iloc box in both methods.
     const modifiedImage = createNewIinfBox(image, metaBox, xmp.length)
     const newMetaBox = findMetaBox(modifiedImage)
@@ -432,15 +432,10 @@ export const heicWriteOrUpdateXmp = (image: Uint8Array, xmp: Uint8Array): Uint8A
   // Now, we find the Metadata ID (from an INFE Box inside the IINF Box)
   const metadataId = findXmpMetadataID(iinfBox.data)
 
-  console.log(`IINF Box exists. Found Metadata ID: ${metadataId}`)
-
   if (metadataId == null) {
     const { modifiedImage, newMetadataId, newMetaBox } = addInfeBox(image, metaBox, iinfBox)
-    console.log(`New metadata ID: ${newMetadataId}`)
-    console.log(`re-read the meta box: ${newMetaBox.data}`)
     return addNewXmpData(modifiedImage, xmp, newMetaBox, newMetadataId)
   }
 
-  console.log('Going to replace the existing XMP data.')
   return replaceExistingXmpData(image, metadataId, xmp)
 }

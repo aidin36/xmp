@@ -33,8 +33,8 @@ describe('HEIC Digikam Tags file', () => {
     expect(readXmpFromHeic(fileContent)).toEqual(undefined)
   })
 
-  it('should return undefined when there is no xmp - larger file', () => {
-    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/large-heic-no-xmp.heic'))
+  it('should return undefined when there is no xmp - file has multiple ilocs', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp-multiple-ilocs.heic'))
 
     expect(readXmpFromHeic(fileContent)).toEqual(undefined)
   })
@@ -48,8 +48,8 @@ describe('HEIC write', () => {
     expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
   })
 
-  it('should write to a larger empty file', () => {
-    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/large-heic-no-xmp.heic'))
+  it('should write to an empty file with some iloc boxes', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp-multiple-ilocs.heic'))
     const modifiedImage = writeXmpToHeicAsString(fileContent, heicDigikamTagsXmp)
 
     expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
@@ -62,8 +62,8 @@ describe('HEIC write', () => {
     expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
   })
 
-  it('should update a larger file', () => {
-    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/large-heic-with-xmp.heic'))
+  it('should update a file with some iloc boxes', () => {
+    const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp-multiple-ilocs.heic'))
     const modifiedImage = writeXmpToHeicAsString(fileContent, heicDigikamTagsXmp)
 
     expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
