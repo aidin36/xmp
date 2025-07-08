@@ -38,9 +38,13 @@ const APPLICATION_XML = [97, 112, 112, 108, 105, 99, 97, 116, 105, 111, 110, 47,
  *
  * @param affectedOffset Will update ilocs that point to a location after this
  *   offset.
- * @param addedSize adds this number to the offsets.
+ * @param addedSize adds this number to the offsets. It can be negative.
  */
 const correctAllIlocItems = (image: Uint8Array, metaBox: MetaBox, affectedOffset: number, addedSize: number) => {
+  if (addedSize === 0) {
+    return image
+  }
+
   const iloc = parseIlocBox(metaBox.metaInnerBoxesData)
 
   if (!iloc) {
@@ -52,15 +56,26 @@ const correctAllIlocItems = (image: Uint8Array, metaBox: MetaBox, affectedOffset
 
   iloc.ilocItems.forEach((item) => {
     item.extends.forEach((extend) => {
-      if (extend.offset >= affectedOffset) {
+      // This is kinda dirty! When we're parsing iloc Box, we pass 'metaInnerBoxesData' to the method.
+      // So all the indexes are relative to that.
+      // The 'metaInnerBoxesData' start from 'metaBox.dataStartIndex + 4'.
+      // Then, we have 'iloc.dataStartIndex' which is relative to the 'metaInnerBoxesData', and
+      // offsetFieldRelativeIndex' is relative to the start of the iloc's data.
+      // That's how find the index for the 'offset'!
+      const offsetStartIndex = metaBox.dataStartIndex + 4 + iloc.dataStartIndex + extend.offsetFieldRelativeIndex
+      if (extend.offset === affectedOffset) {
+        // The length of the data this one points to changed, but not its location.
+        // i.e. it's the item that points to XMP data, and we updated the XMP.
+        const lengthStartIndex = offsetStartIndex + iloc.offsetSize
+        const newLength = extend.length + addedSize
+        if (iloc.lengthSize === 4) {
+          image.set(uint32ToBytes(newLength), lengthStartIndex)
+        } else {
+          image.set(uint64ToBytes(newLength), lengthStartIndex)
+        }
+      }
+      if (extend.offset > affectedOffset) {
         const newOffset = extend.offset + addedSize
-        // This is kinda dirty! When we're parsing iloc Box, we pass 'metaInnerBoxesData' to the method.
-        // So all the indexes are relative to that.
-        // The 'metaInnerBoxesData' start from 'metaBox.dataStartIndex + 4'.
-        // Then, we have 'iloc.dataStartIndex' which is relative to the 'metaInnerBoxesData', and
-        // offsetFieldRelativeIndex' is relative to the start of the iloc's data.
-        // That's how find the index for the 'offset'!
-        const offsetStartIndex = metaBox.dataStartIndex + 4 + iloc.dataStartIndex + extend.offsetFieldRelativeIndex
         if (iloc.offsetSize === 4) {
           // Did it this way to save memory. Otherwise had to create a few
           // copies of the potentially large image array.
@@ -237,7 +252,7 @@ const createInfeBox = (metadataId: number) => {
 /**
  * Creates IINF (with an INFE inside) and ILOC Boxes.
  */
-const createNewIinfBox = (image: Uint8Array, metaBox: Box, xmpLength: number) => {
+const createNewIinfBox = (image: Uint8Array, metaBox: Box) => {
   // See the 'findXmpMetadataID' method for the structure of the IINF Box.
 
   // one byte version
@@ -322,8 +337,6 @@ const addInfeBox = (image: Uint8Array, metaBox: Box, iinfBox: Box) => {
   const absoluteIinfStartIndex = metaBox.dataStartIndex + 4 + iinfBox.boxStartIndex
   const absoluteIinfEndIndex = metaBox.dataStartIndex + 4 + iinfBox.boxEndIndex
 
-  // TODO: It shifts all the data in the image. So we need to find and correct all iloc boxes :/
-
   // We replace the 'size' of the IINF and Meta Boxes, and append our new
   // INFE Box to the end of the IINF Box.
   const modifiedImage = new Uint8Array([
@@ -399,8 +412,48 @@ const addNewXmpData = (image: Uint8Array, xmp: Uint8Array, metaBox: MetaBox, met
   return correctedImage
 }
 
-// TODO:
-const replaceExistingXmpData = (image: Uint8Array, metadataId: number, xmp: Uint8Array) => image
+const replaceExistingXmpData = (image: Uint8Array, metaBox: MetaBox, metadataId: number, newXmp: Uint8Array) => {
+  const iloc = parseIlocBox(metaBox.metaInnerBoxesData)
+
+  if (iloc == null) {
+    throw Error(
+      `This is a bug! The image should already have an iloc Box, but I didn't find it. meta Box = ${JSON.stringify(metaBox)}`
+    )
+  }
+
+  const xmpItem = iloc.ilocItems.find((itm) => itm.itemId === metadataId)
+
+  if (xmpItem == null) {
+    throw Error(
+      `This is a bug! The image should have an iloc with the ${metadataId} ID, but I didn't find it. meta Box=${JSON.stringify(metaBox)}`
+    )
+  }
+
+  if (xmpItem.dataReferenceIndex !== 0) {
+    throw Error('The XMP data is not stored in the current file. This is not supported yet.')
+  }
+
+  // TODO: Maybe we can delete all the extends and then create a single one?
+  if (xmpItem.extentCount !== 1) {
+    throw Error(
+      `Sorry, this image is not supported yet. The iloc item that points to the XMP data has multiple extends. item = ${JSON.stringify(xmpItem)}`
+    )
+  }
+
+  const extend = xmpItem.extends.at(0)!
+  const oldXmp = image.subarray(extend.offset, extend.offset + extend.length)
+
+  const modifiedImage = concatArrays(
+    image.subarray(0, extend.offset),
+    newXmp,
+    image.subarray(extend.offset + extend.length)
+  )
+
+  const sizeDiff = newXmp.length - oldXmp.length
+
+  // It also corrects the length of the iloc item that stored our XMP data.
+  return correctAllIlocItems(modifiedImage, metaBox, extend.offset, sizeDiff)
+}
 
 /**
  * @internal
@@ -420,7 +473,7 @@ export const heicWriteOrUpdateXmp = (image: Uint8Array, xmp: Uint8Array): Uint8A
 
   if (iinfBox == null) {
     // TODO: continue: I add the new iloc box in both methods.
-    const modifiedImage = createNewIinfBox(image, metaBox, xmp.length)
+    const modifiedImage = createNewIinfBox(image, metaBox)
     const newMetaBox = findMetaBox(modifiedImage)
     if (newMetaBox == null) {
       throw Error(`MetaBox corrupted after we modified it. Please report this bug!`)
@@ -437,5 +490,5 @@ export const heicWriteOrUpdateXmp = (image: Uint8Array, xmp: Uint8Array): Uint8A
     return addNewXmpData(modifiedImage, xmp, newMetaBox, newMetadataId)
   }
 
-  return replaceExistingXmpData(image, metadataId, xmp)
+  return replaceExistingXmpData(image, metaBox, metadataId, xmp)
 }

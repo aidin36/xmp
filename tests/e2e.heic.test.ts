@@ -19,6 +19,7 @@ import fs from 'fs'
 
 import { readXmpFromHeic, writeXmpToHeicAsString } from '../src'
 import { heicDigikamTagsXmp } from './data/heicDigikamTags'
+import { smallXmp } from './data/smallXmp'
 
 describe('HEIC Digikam Tags file', () => {
   it('should extract xmp string', () => {
@@ -57,15 +58,19 @@ describe('HEIC write', () => {
 
   it('should update a file', () => {
     const fileContent = new Uint8Array(fs.readFileSync('./tests/images/digikam-tags.heic'))
-    const modifiedImage = writeXmpToHeicAsString(fileContent, heicDigikamTagsXmp)
+    const modifiedImage = writeXmpToHeicAsString(fileContent, smallXmp)
 
-    expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
+    expect(readXmpFromHeic(modifiedImage)).toEqual(smallXmp)
   })
 
-  it('should update a file with some iloc boxes', () => {
+  it('should write and update a file with some iloc boxes', () => {
+    // The file doesn't have a XMP at first.
     const fileContent = new Uint8Array(fs.readFileSync('./tests/images/heic-no-xmp-multiple-ilocs.heic'))
-    const modifiedImage = writeXmpToHeicAsString(fileContent, heicDigikamTagsXmp)
+    const modifiedImage = writeXmpToHeicAsString(fileContent, smallXmp)
 
-    expect(readXmpFromHeic(modifiedImage)).toEqual(heicDigikamTagsXmp)
+    expect(readXmpFromHeic(modifiedImage)).toEqual(smallXmp)
+
+    const modifiedImage2 = writeXmpToHeicAsString(modifiedImage, heicDigikamTagsXmp)
+    expect(readXmpFromHeic(modifiedImage2)).toEqual(heicDigikamTagsXmp)
   })
 })
