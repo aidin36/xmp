@@ -323,7 +323,6 @@ const addInfeBox = (image: Uint8Array, metaBox: Box, iinfBox: Box) => {
 
   const metadataId = findNextInfeItemId(iinfBox)
 
-  // TODO: FIXME: We need to increase the entry count in the IINF Box.
   const infeBox = createInfeBox(metadataId)
 
   const newIinfSize = iinfBox.size + infeBox.length
@@ -332,22 +331,34 @@ const addInfeBox = (image: Uint8Array, metaBox: Box, iinfBox: Box) => {
   // When we're searching for IINF Box, we send 'metaBox.metaInnerBoxesData' to
   // the 'findBox' method. So, the indexes it returns are relative to the start
   // of the 'metaInnerBoxesData'. Which is 'metaBox.dataStartIndex + 4'.
-  // It's very error prone to keep the indexes like this. I actually made a
-  // mistake here that took me a while to debug! Need to clean this up.
+  // TODO: It's very error prone to keep the indexes like this. I actually made
+  // a mistake here that took me a while to debug! Need to clean this up.
   const absoluteIinfStartIndex = metaBox.dataStartIndex + 4 + iinfBox.boxStartIndex
   const absoluteIinfEndIndex = metaBox.dataStartIndex + 4 + iinfBox.boxEndIndex
+  const absoluteIinfDataStartIndex = metaBox.dataStartIndex + 4 + iinfBox.dataStartIndex
+
+  // We need to update the entry count. The first bytes are the count.
+  const iinfVersion = iinfBox.data.at(0)
+  const oldEntryCount =
+    iinfVersion === 0 ? bytes2Uint16(iinfBox.data.subarray(1, 2)) : bytes2Uint32(iinfBox.data.subarray(1, 4))
+  const newEntryCount = oldEntryCount + 1
+  const newEntryCountBytes = iinfVersion === 0 ? uint16ToBytes(newEntryCount) : uint32ToBytes(newEntryCount)
+  const newEntryCountSize = iinfVersion === 0 ? 2 : 4
 
   // We replace the 'size' of the IINF and Meta Boxes, and append our new
   // INFE Box to the end of the IINF Box.
-  const modifiedImage = new Uint8Array([
-    ...image.subarray(0, metaBox.boxStartIndex),
-    ...uint32ToBytes(newMetaSize),
-    ...image.subarray(metaBox.boxStartIndex + 4, absoluteIinfStartIndex),
-    ...uint32ToBytes(newIinfSize),
-    ...image.subarray(absoluteIinfStartIndex + 4, absoluteIinfEndIndex),
-    ...infeBox,
-    ...image.subarray(absoluteIinfEndIndex),
-  ])
+  const modifiedImage = concatArrays(
+    image.subarray(0, metaBox.boxStartIndex),
+    uint32ToBytes(newMetaSize),
+    image.subarray(metaBox.boxStartIndex + 4, absoluteIinfStartIndex),
+    uint32ToBytes(newIinfSize),
+    // First byte is version. We replace the entry counts after that.
+    image.subarray(absoluteIinfStartIndex + 4, absoluteIinfDataStartIndex + 1),
+    newEntryCountBytes,
+    image.subarray(absoluteIinfDataStartIndex + 1 + newEntryCountSize, absoluteIinfEndIndex),
+    new Uint8Array(infeBox),
+    image.subarray(absoluteIinfEndIndex)
+  )
 
   const newMetaBox = findMetaBox(modifiedImage)
   if (newMetaBox == null) {
@@ -472,7 +483,6 @@ export const heicWriteOrUpdateXmp = (image: Uint8Array, xmp: Uint8Array): Uint8A
   const iinfBox = findBox(metaBox.metaInnerBoxesData, 'iinf')
 
   if (iinfBox == null) {
-    // TODO: continue: I add the new iloc box in both methods.
     const modifiedImage = createNewIinfBox(image, metaBox)
     const newMetaBox = findMetaBox(modifiedImage)
     if (newMetaBox == null) {
