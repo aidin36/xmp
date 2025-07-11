@@ -11,7 +11,8 @@
     "pretty": "prettier './src/**/*.ts*' --write --config .prettierrc",
     "lint": "eslint --quiet './src/**/*.ts*'",
     "test": "jest",
-    "coverage": "jest --coverage"
+    "coverage": "jest --coverage",
+    "ci:coverage": "jest --ci --coverage --coverageDirectory './coverage'"
   },
   "repository": {
     "type": "git",

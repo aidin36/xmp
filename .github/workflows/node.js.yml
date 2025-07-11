@@ -25,7 +25,15 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+
       - run: npm install
       - run: npm run tsc
       - run: npm run lint
-      - run: npm run test
+      - run: npm run 'ci:coverage'
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        # We only need to submit the coverage once.
+        if: ${{ matrix.node-version == '22.x'  }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
