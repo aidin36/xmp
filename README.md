@@ -7,7 +7,15 @@ It can read and write XMP data from/to various file formats.
 | Format | Read | Write |
 | :----: | :--: | :---: |
 |  JPEG  |  ✓   |   ╳   |
-|  HEIC  |  ✓   |   ╳   |
+|  HEIC  |  ✓   |   ✓   |
+
+### Limitations of HEIC
+
+Writing to HEIC format has a few limitations:
+
+- The library cannot handle numbers greater than UINT32 (4294967295) but in
+  some cases HEIC can store UINT64 numbers. If it encounters those larger
+  numbers while reading or writing the file, it will throw an error.
 
 ## Installation
 
