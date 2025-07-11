@@ -1,6 +1,6 @@
 {
   "name": "@aidin36/xmp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read and write XMP metadata from/to various media formats",
   "private": true,
   "main": "index.js",
@@ -31,24 +31,24 @@
   },
   "homepage": "https://github.com/aidin36/xmp#readme",
   "volta": {
-    "node": "22.12.0"
+    "node": "22.17.0"
   },
   "devDependencies": {
-    "@jest/globals": "29.7.0",
-    "@typescript-eslint/eslint-plugin": "8.19.0",
-    "@typescript-eslint/parser": "8.19.0",
+    "@jest/globals": "30.0.4",
+    "@typescript-eslint/eslint-plugin": "8.36.0",
+    "@typescript-eslint/parser": "8.36.0",
     "eslint": "8.57.1",
     "eslint-config-airbnb": "19.0.4",
-    "eslint-config-prettier": "9.1.0",
-    "eslint-plugin-prettier": "5.2.1",
+    "eslint-config-prettier": "10.1.5",
+    "eslint-plugin-prettier": "5.5.1",
     "eslint-plugin-tsdoc": "0.4.0",
-    "jest": "29.7.0",
-    "prettier": "3.4.2",
-    "ts-jest": "29.2.5",
-    "typescript": "5.7.2"
+    "jest": "30.0.4",
+    "prettier": "3.6.2",
+    "ts-jest": "29.4.0",
+    "typescript": "5.8.3"
   },
   "dependencies": {
     "@aidin36/xmp2js": "^1.0.0",
-    "@xmldom/xmldom": "0.9.6"
+    "@xmldom/xmldom": "0.9.8"
   }
 }
