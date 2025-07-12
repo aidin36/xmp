@@ -1,5 +1,7 @@
 # XMP Javascript package
 
+![NPM Version](https://img.shields.io/npm/v/%40aidin36%2Fxmp) [![codecov](https://codecov.io/github/aidin36/xmp/graph/badge.svg?token=0E601PBV4M)](https://codecov.io/github/aidin36/xmp)
+
 It can read and write XMP data from/to various file formats.
 
 ## Supported Formats
