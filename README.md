@@ -69,11 +69,10 @@ const fileContent = new Uint8Array(fs.readFileSync('./path/to/file.heic'))
 Or in `React Native`:
 
 ```Typescript
-import RNFS from 'react-native-fs'
+import { File } from 'expo-file-system/next'
 
-const base64 = await RNFS.readFile(imagePath, 'base64')
-
-const fileContent = Uint8Array.fromBase64(base64)
+const fileHandler = new File(fileUrl).open()
+const fileContent = fileHandler.readBytes(fileHandler.size)
 ```
 
 And in a browser:
