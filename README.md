@@ -4,6 +4,12 @@
 
 It can read and write XMP data from/to various file formats.
 
+## Please do not use this to write data
+
+It's still an under development library. The media file standards are big and
+complicated. There are cases that the library can damage the data of your files.
+Use at your own risk!
+
 ## Supported Formats
 
 | Format | Read | Write |
